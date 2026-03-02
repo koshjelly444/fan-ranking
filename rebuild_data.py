@@ -12,9 +12,35 @@ TOP_N = 500
 # ── City normalization ──────────────────────────────────────────────
 # Map common aliases to canonical form
 CITY_ALIASES = {
-    "atl": "Atlanta", "dc": "Washington, DC", "nyc": "New York",
-    "la": "Los Angeles", "h-town": "Houston", "ny": "New York",
-    "kc": "Kansas City",
+    "atl": "Atlanta, GA", "dc": "Washington, DC", "nyc": "New York, NY",
+    "la": "Los Angeles, CA", "h-town": "Houston, TX", "ny": "New York, NY",
+    "kc": "Kansas City, MO", "philly": "Philadelphia, PA", "bmore": "Baltimore, MD",
+    "nola": "New Orleans, LA", "chi": "Chicago, IL", "det": "Detroit, MI",
+    "washington dc": "Washington, DC", "washington d.c.": "Washington, DC",
+    "washington d.c": "Washington, DC", "washington, d.c.": "Washington, DC",
+    "washington, dc": "Washington, DC", "capetown": "Cape Town",
+    "st louis": "St. Louis, MO", "st. louis": "St. Louis, MO",
+    "stlouis": "St. Louis, MO", "saint louis": "St. Louis, MO",
+}
+
+# Well-known US cities → state (fallback when no state is provided)
+KNOWN_CITY_STATES = {
+    "atlanta": "GA", "new york": "NY", "los angeles": "CA", "chicago": "IL",
+    "houston": "TX", "detroit": "MI", "charlotte": "NC", "dallas": "TX",
+    "philadelphia": "PA", "seattle": "WA", "baltimore": "MD", "memphis": "TN",
+    "new orleans": "LA", "oakland": "CA", "san francisco": "CA", "miami": "FL",
+    "denver": "CO", "phoenix": "AZ", "san diego": "CA", "san antonio": "TX",
+    "austin": "TX", "nashville": "TN", "minneapolis": "MN", "portland": "OR",
+    "columbus": "OH", "indianapolis": "IN", "milwaukee": "WI", "jacksonville": "FL",
+    "richmond": "VA", "tampa": "FL", "raleigh": "NC", "durham": "NC",
+    "brooklyn": "NY", "queens": "NY", "bronx": "NY", "harlem": "NY",
+    "st. louis": "MO", "st louis": "MO", "kansas city": "MO",
+    "las vegas": "NV", "pittsburgh": "PA", "cincinnati": "OH", "cleveland": "OH",
+    "sacramento": "CA", "san jose": "CA", "fort worth": "TX", "el paso": "TX",
+    "tucson": "AZ", "omaha": "NE", "louisville": "KY", "oklahoma city": "OK",
+    "boston": "MA", "virginia beach": "VA", "columbia": "SC", "savannah": "GA",
+    "birmingham": "AL", "montgomery": "AL", "jackson": "MS", "little rock": "AR",
+    "baton rouge": "LA", "greensboro": "NC", "winston-salem": "NC",
 }
 
 US_STATES = {
@@ -46,35 +72,53 @@ def normalize_city(raw_city, raw_state):
     if not city:
         return ("", state.upper() if state else "")
 
-    # Check alias first
-    alias_key = city.lower().replace(",", "").strip()
-    if alias_key in CITY_ALIASES:
-        canonical = CITY_ALIASES[alias_key]
-        if "," in canonical:
-            parts = canonical.split(",")
-            return (parts[0].strip(), parts[1].strip())
-        return (canonical, state.upper() if state else "")
+    # Normalize the full input for alias check (handles "Washington DC", "Washington D.C.", etc.)
+    alias_key = re.sub(r'[,.\s]+', ' ', city.lower()).strip()
+    # Also try with commas removed
+    for key in [alias_key, city.lower().replace(",", "").strip()]:
+        if key in CITY_ALIASES:
+            canonical = CITY_ALIASES[key]
+            if "," in canonical:
+                parts = canonical.split(",")
+                return (parts[0].strip(), parts[1].strip())
+            return (canonical, state.upper() if state else "")
 
     # Split city field that contains state info like "Atlanta, GA" or "Atlanta, Georgia"
     parts = [p.strip() for p in city.split(",") if p.strip()]
 
     # Title-case the city name
     city_name = parts[0].strip()
+
+    # Check if city_name ends with a state abbreviation without comma (e.g. "Charlotte Nc", "Atlanta Ga.")
+    words = city_name.split()
+    inferred_state = ""
+    if len(words) >= 2:
+        last_word = words[-1].rstrip(".")
+        if last_word.upper() in US_STATES and len(last_word) <= 3:
+            inferred_state = last_word.upper()
+            city_name = " ".join(words[:-1])
+        elif last_word.lower() in STATE_FULL_TO_ABBREV:
+            inferred_state = STATE_FULL_TO_ABBREV[last_word.lower()]
+            city_name = " ".join(words[:-1])
+
     # Proper title case, preserving D.C.
     city_name = " ".join(w.capitalize() if w.lower() not in ("of","the","and","de","es","am") else w.lower()
                          for w in city_name.split())
-    city_name = city_name.replace("D.c.", "D.C.").replace("D.C", "D.C.")
+    city_name = city_name.replace("D.c.", "D.C.").replace("D.C", "D.C.").replace("D.C..", "D.C.")
 
-    # Try to extract state from city field parts
-    inferred_state = ""
-    for part in parts[1:]:
-        p = part.strip().rstrip(".")
-        if p.upper() in US_STATES:
-            inferred_state = p.upper()
-            break
-        if p.lower() in STATE_FULL_TO_ABBREV:
-            inferred_state = STATE_FULL_TO_ABBREV[p.lower()]
-            break
+    # Normalize St/St. variations (only add dot if not already there)
+    city_name = re.sub(r'^St(?!\.)\b', 'St.', city_name)
+
+    # Try to extract state from comma-separated city field parts
+    if not inferred_state:
+        for part in parts[1:]:
+            p = part.strip().rstrip(".")
+            if p.upper() in US_STATES:
+                inferred_state = p.upper()
+                break
+            if p.lower() in STATE_FULL_TO_ABBREV:
+                inferred_state = STATE_FULL_TO_ABBREV[p.lower()]
+                break
 
     # Use CSV state column as fallback
     if not inferred_state and state:
@@ -85,6 +129,12 @@ def normalize_city(raw_city, raw_state):
             inferred_state = STATE_FULL_TO_ABBREV[s.lower()]
         else:
             inferred_state = s.upper()[:2] if len(s) <= 3 else ""
+
+    # Final fallback: known city → state mapping
+    if not inferred_state:
+        known_key = city_name.lower()
+        if known_key in KNOWN_CITY_STATES:
+            inferred_state = KNOWN_CITY_STATES[known_key]
 
     return (city_name, inferred_state)
 
