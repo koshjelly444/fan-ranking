@@ -351,7 +351,7 @@ statsEl.innerHTML = [
   { v: '$' + summary.totalRevenue.toLocaleString(undefined,{maximumFractionDigits:0}), l: 'Total Revenue', sub: '$' + (summary.totalRevenue/summary.totalBuyers).toFixed(0) + ' avg/buyer' },
   { v: summary.tierCounts['Superfan'] || 0, l: 'Superfans', sub: 'Top ' + ((summary.tierCounts['Superfan']/summary.totalFans)*100).toFixed(2) + '%' },
   { v: newestSF ? newestSF.n.split(' ')[0] : '—', l: 'Newest Superfan', sub: newestSF ? 'Joined ' + newestSF.j : '' },
-  { v: longestSF ? Math.floor(longestSF.td/30) + 'mo', l: 'Longest Superfan', sub: longestSF ? longestSF.n : '' },
+  { v: longestSF ? Math.floor(longestSF.td/30) + 'mo' : '—', l: 'Longest Superfan', sub: longestSF ? longestSF.n : '' },
   { v: summary.topScore.toFixed(1), l: 'Top Score', sub: 'out of ~100' },
 ].map(s => `<div class="stat-card"><div class="stat-value">${s.v}</div><div class="stat-label">${s.l}</div>${s.sub?'<div class="stat-sub">'+s.sub+'</div>':''}</div>`).join('');
 
