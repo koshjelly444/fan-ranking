@@ -87,6 +87,71 @@ td { padding: 10px 14px; white-space: nowrap; }
 .algo-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1a1a28; font-size: 13px; }
 .algo-item:last-child { border-bottom: none; }
 .algo-pts { color: var(--accent); font-weight: 600; }
+
+/* Export button */
+.export-btn { background: linear-gradient(135deg, #4ade80, #06B6D4); border: none; border-radius: 8px; padding: 8px 16px; color: #000; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.export-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74,222,128,0.3); }
+
+/* Compare UI */
+.compare-bar { display: none; position: sticky; bottom: 0; background: linear-gradient(135deg, #1a1a2e, #16213e); border-top: 2px solid var(--accent); padding: 12px 24px; z-index: 50; align-items: center; justify-content: space-between; }
+.compare-bar.show { display: flex; }
+.compare-btn { background: var(--accent); border: none; border-radius: 8px; padding: 10px 20px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+.compare-btn:hover { background: #7c3aed; }
+.compare-clear { background: none; border: 1px solid #666; border-radius: 8px; padding: 8px 16px; color: #ccc; font-size: 13px; cursor: pointer; margin-left: 12px; }
+.compare-names { color: #fff; font-size: 14px; }
+.compare-names span { color: var(--accent2); font-weight: 600; }
+.compare-modal { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.compare-col { padding: 16px; }
+.compare-col:first-child { border-right: 1px solid var(--border); }
+.compare-col h3 { font-size: 16px; margin-bottom: 4px; color: #fff; }
+.compare-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a28; font-size: 13px; }
+.compare-row .label { color: #888; }
+.compare-row .val { color: #fff; font-weight: 600; }
+.compare-row .val.win { color: #4ade80; }
+.compare-vs { display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 2px; padding: 16px 0; }
+.compare-sb-row { display: flex; align-items: center; margin: 4px 0; }
+.compare-sb-label { width: 80px; font-size: 11px; color: #888; }
+.compare-sb-bar { flex: 1; height: 6px; background: #222; border-radius: 3px; overflow: hidden; margin: 0 6px; }
+.compare-sb-fill { height: 100%; border-radius: 3px; }
+.compare-sb-val { width: 32px; font-size: 11px; color: #ccc; text-align: right; }
+td .compare-check { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+/* City chart */
+.city-bar-row { display: flex; align-items: center; margin: 4px 0; }
+.city-name { width: 130px; font-size: 12px; color: #ccc; text-align: right; padding-right: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.city-bar-bg { flex: 1; height: 18px; background: #1a1a28; border-radius: 4px; overflow: hidden; }
+.city-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; color: #fff; font-weight: 600; min-width: 28px; }
+
+/* Mobile improvements */
+@media (max-width: 768px) {
+  .header { padding: 16px; }
+  .header h1 { font-size: 20px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px 16px; }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 20px; }
+  .main { padding: 0 16px 16px; }
+  .charts-row { grid-template-columns: 1fr; gap: 16px; }
+  .controls { flex-direction: column; align-items: stretch; }
+  .search-box { width: 100%; }
+  .filter-btn { font-size: 12px; padding: 6px 10px; }
+  .table-wrap { font-size: 12px; }
+  td, th { padding: 8px 6px; }
+  .fan-name { max-width: 120px; }
+  .score-bar { width: 50px; }
+  .modal { padding: 20px; width: 95%; }
+  .detail-grid { grid-template-columns: 1fr; }
+  .compare-modal { grid-template-columns: 1fr; }
+  .compare-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .section-title { font-size: 16px; }
+  .city-name { width: 90px; font-size: 11px; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .header h1 { font-size: 18px; }
+  .stat-value { font-size: 18px; }
+  .tier-bar { height: 30px; }
+  .legend { flex-direction: column; gap: 6px; }
+}
 </style>
 </head>
 <body>
@@ -116,6 +181,17 @@ td { padding: 10px 14px; white-space: nowrap; }
   
   <div class="charts-row">
     <div class="chart-card">
+      <h3>Top Fan Cities</h3>
+      <div id="cityBars"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Categories by Tier</h3>
+      <canvas id="tierCatChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
       <h3>Monthly Fan Growth</h3>
       <canvas id="growthChart"></canvas>
     </div>
@@ -142,6 +218,7 @@ td { padding: 10px 14px; white-space: nowrap; }
       <option value="tenure">Sort: Tenure</option>
       <option value="name">Sort: Name</option>
     </select>
+    <button class="export-btn" onclick="exportCSV()">Export CSV</button>
     <button class="filter-btn active" data-tier="all">All</button>
     <button class="filter-btn" data-tier="Superfan">Superfan</button>
     <button class="filter-btn" data-tier="Core Supporter">Core</button>
@@ -153,7 +230,7 @@ td { padding: 10px 14px; white-space: nowrap; }
     <table>
       <thead>
         <tr>
-          <th>Rank</th><th>Fan</th><th>Instagram</th><th>Tier</th>
+          <th style="width:36px">VS</th><th>Rank</th><th>Fan</th><th>Instagram</th><th>Tier</th>
           <th>Score</th><th>$ Spent</th><th>Purchases</th>
           <th>Tenure</th><th>Touchpoints</th><th>Twin</th>
         </tr>
@@ -162,6 +239,14 @@ td { padding: 10px 14px; white-space: nowrap; }
     </table>
   </div>
   <div class="pagination" id="pagination"></div>
+</div>
+
+<div class="compare-bar" id="compareBar">
+  <div class="compare-names" id="compareNames"></div>
+  <div>
+    <button class="compare-btn" onclick="showCompare()">Compare</button>
+    <button class="compare-clear" onclick="clearCompare()">Clear</button>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalOverlay">
@@ -259,7 +344,9 @@ function renderTable(){
   document.getElementById('fanTableBody').innerHTML=page.map((f,i)=>{
     const pct=(f.sc/mx*100).toFixed(0), bc=TIER_COLORS[f.t]||'#666';
     const dots=[f.he,f.hi,f.hp].map((on,j)=>`<div class="dot ${on?'on':'off'}" title="${['Email','Instagram','Phone'][j]}"></div>`).join('');
-    return `<tr onclick="showModal(${fans.indexOf(f)})">
+    const fIdx=fans.indexOf(f);
+    return `<tr onclick="showModal(${fIdx})">
+      <td><input type="checkbox" class="compare-check" data-idx="${fIdx}" ${compareList.includes(fIdx)?'checked':''} onclick="toggleCompare(${fIdx},event)"></td>
       <td><span class="rank-num">#${f.r}</span></td>
       <td><span class="fan-name">${esc(f.n)}</span></td>
       <td>${f.ig?'<a class="ig-link" href="https://instagram.com/'+f.ig+'" target="_blank" onclick="event.stopPropagation()">@'+esc(f.ig)+'</a>':'<span style="color:#444">—</span>'}</td>
@@ -323,6 +410,149 @@ function showModal(idx){
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show');}
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// --- Top Cities horizontal bars ---
+(function(){
+  const cities = Object.entries(summary.topCities).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  const maxCity = cities[0][1];
+  document.getElementById('cityBars').innerHTML = cities.map(([name,count])=>{
+    const pct = (count/maxCity*100).toFixed(0);
+    return `<div class="city-bar-row"><div class="city-name" title="${name}">${name}</div><div class="city-bar-bg"><div class="city-bar-fill" style="width:${pct}%">${count}</div></div></div>`;
+  }).join('');
+})();
+
+// --- Category by Tier chart ---
+(function(){
+  const tierCats = {};
+  TIER_ORDER.slice(0,3).forEach(t=>{ tierCats[t]={}; });
+  fans.forEach(f=>{
+    if(!tierCats[f.t]) return;
+    (f.cats||[]).forEach(c=>{ tierCats[f.t][c]=(tierCats[f.t][c]||0)+1; });
+  });
+  const allCats = [...new Set(fans.flatMap(f=>f.cats||[]))];
+  const catColors = ['#8B5CF6','#06B6D4','#4ade80','#f59e0b','#ef4444','#ec4899','#6366f1','#14b8a6'];
+  new Chart(document.getElementById('tierCatChart'), {
+    type:'bar',
+    data:{
+      labels: TIER_ORDER.slice(0,3),
+      datasets: allCats.map((cat,i)=>({
+        label: cat.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase()),
+        data: TIER_ORDER.slice(0,3).map(t=>tierCats[t][cat]||0),
+        backgroundColor: catColors[i % catColors.length],
+        borderRadius: 2
+      }))
+    },
+    options:{
+      plugins:{legend:{position:'bottom',labels:{color:'#888',font:{size:10},padding:6,boxWidth:12}}},
+      responsive:true,
+      scales:{
+        x:{stacked:true,ticks:{color:'#666'},grid:{display:false}},
+        y:{stacked:true,ticks:{color:'#666'},grid:{color:'#1a1a28'}}
+      }
+    }
+  });
+})();
+
+// --- Export CSV ---
+function exportCSV(){
+  const fl = getFiltered();
+  const header = ['Rank','Name','Instagram','Tier','Score','Spent','Purchases','Tenure (days)','Has Email','Has IG','Has Phone','Twin','Categories'];
+  const rows = fl.map(f=>[f.r,'"'+f.n.replace(/"/g,'""')+'"',f.ig||'',f.t,f.sc.toFixed(1),f.s.toFixed(2),f.p,f.td,f.he?1:0,f.hi?1:0,f.hp?1:0,f.tw?1:0,'"'+(f.cats||[]).join(', ')+'"']);
+  const csv = [header.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fan-ranking-export.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// --- Fan Comparison ---
+let compareList = [];
+
+function toggleCompare(idx, el){
+  el.stopPropagation();
+  const cb = el.target;
+  if(cb.checked){
+    if(compareList.length >= 2){
+      cb.checked = false;
+      return;
+    }
+    compareList.push(idx);
+  } else {
+    compareList = compareList.filter(i=>i!==idx);
+  }
+  updateCompareBar();
+}
+
+function updateCompareBar(){
+  const bar = document.getElementById('compareBar');
+  const names = document.getElementById('compareNames');
+  if(compareList.length === 0){
+    bar.classList.remove('show');
+    return;
+  }
+  bar.classList.add('show');
+  const n = compareList.map(i=>fans[i].n);
+  names.innerHTML = compareList.length === 1
+    ? 'Selected: <span>'+esc(n[0])+'</span> — pick one more to compare'
+    : '<span>'+esc(n[0])+'</span> vs <span>'+esc(n[1])+'</span>';
+}
+
+function clearCompare(){
+  compareList = [];
+  document.querySelectorAll('.compare-check').forEach(c=>c.checked=false);
+  updateCompareBar();
+}
+
+function showCompare(){
+  if(compareList.length !== 2) return;
+  const a = fans[compareList[0]], b = fans[compareList[1]];
+  const fields = [
+    {l:'Score',ka:'sc',kb:'sc',fmt:v=>v.toFixed(1),higher:true},
+    {l:'Rank',ka:'r',kb:'r',fmt:v=>'#'+v,higher:false},
+    {l:'Spent',ka:'s',kb:'s',fmt:v=>'$'+v.toFixed(0),higher:true},
+    {l:'Purchases',ka:'p',kb:'p',fmt:v=>v,higher:true},
+    {l:'Tenure',ka:'td',kb:'td',fmt:v=>Math.floor(v/30)+' mo',higher:true},
+    {l:'Touchpoints',ka:'tp',kb:'tp',fmt:v=>v,higher:true},
+  ];
+  const sbFields = [
+    {l:'Spend',k:'spending',max:35,c:'#4ade80'},
+    {l:'Freq',k:'frequency',max:20,c:'#06B6D4'},
+    {l:'Variety',k:'variety',max:15,c:'#f59e0b'},
+    {l:'Tenure',k:'tenure',max:10,c:'#8B5CF6'},
+    {l:'Touch',k:'touchpoints',max:10,c:'#ec4899'},
+    {l:'Tier',k:'tierBonus',max:8,c:'#FFD700'},
+    {l:'Live',k:'livestreamBonus',max:2,c:'#ef4444'},
+  ];
+  function renderCol(f, other, side){
+    const rows = fields.map(fd=>{
+      const v = fd.ka ? f[fd.ka] : 0;
+      const ov = fd.kb ? other[fd.kb] : 0;
+      const win = fd.higher ? v > ov : v < ov;
+      return `<div class="compare-row"><span class="label">${fd.l}</span><span class="val${win?' win':''}">${fd.fmt(v)}</span></div>`;
+    }).join('');
+    const sb = sbFields.map(s=>{
+      const v = f.sb[s.k]||0;
+      return `<div class="compare-sb-row"><div class="compare-sb-label">${s.l}</div><div class="compare-sb-bar"><div class="compare-sb-fill" style="width:${(v/s.max*100).toFixed(0)}%;background:${s.c}"></div></div><div class="compare-sb-val">${v.toFixed(1)}</div></div>`;
+    }).join('');
+    return `<div class="compare-col">
+      <h3>${esc(f.n)}</h3>
+      <span class="tier-badge" style="background:${TIER_COLORS[f.t]};color:#000;margin-bottom:12px">${f.t}</span>
+      ${rows}
+      <div style="margin-top:12px;font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Score Breakdown</div>
+      ${sb}
+    </div>`;
+  }
+  document.getElementById('modalContent').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 style="text-align:center;margin-bottom:16px">Fan Comparison</h2>
+    <div class="compare-modal">
+      ${renderCol(a, b, 'left')}
+      ${renderCol(b, a, 'right')}
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('show');
+}
 
 renderTable();
 </script>
