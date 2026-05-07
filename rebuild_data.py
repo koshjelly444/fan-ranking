@@ -313,12 +313,35 @@ def compute_score(amount, n_purchases, categories, tenure_days, touchpoints, tie
 
 
 # ── Main processing ─────────────────────────────────────────────────
+def load_recovered_ig(enriched_csv="csv_enriched_with_ig.csv"):
+    """Load recovered IG usernames from the enriched CSV (output of match_manychat_ig.py)."""
+    recovered = {}
+    try:
+        with open(enriched_csv, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rig = (row.get("Recovered IG") or "").strip()
+                if rig:
+                    email_key = (row.get("Email") or "").strip().lower()
+                    name_key = f'{row.get("First Name", "")} {row.get("Last Name", "")}'.strip()
+                    if email_key:
+                        recovered[("email", email_key)] = rig
+                    if name_key:
+                        recovered[("name", name_key)] = rig
+        print(f"Loaded {len(recovered)} recovered IG mappings from {enriched_csv}")
+    except FileNotFoundError:
+        print(f"No enriched CSV found at {enriched_csv}, skipping IG recovery")
+    return recovered
+
+
 def main():
     fans = []
     total_revenue = 0
     category_counts = Counter()
     monthly_joins = Counter()
     city_counts = Counter()
+    recovered_ig_map = load_recovered_ig()
+    ig_recovered_count = 0
 
     with open(CSV_FILE, "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
@@ -333,9 +356,24 @@ def main():
             city, state = normalize_city(raw_city, raw_state)
             joined = row.get("Joined At", "").strip()
             ig = row.get("Instagram Username", "").strip()
+
+            # Try to recover IG from ManyChat match if missing
+            if not ig and recovered_ig_map:
+                email_lower = email.lower()
+                name_key = f"{first} {last}".strip()
+                recovered = (recovered_ig_map.get(("email", email_lower))
+                             or recovered_ig_map.get(("name", name_key)))
+                if recovered:
+                    ig = recovered
+                    ig_recovered_count += 1
+
             n_purchases = int(row.get("# Purchases", "0") or "0")
             amount = float(row.get("Amount Spent", "0") or "0")
             purchase_str = row.get("Purchases", "").strip()
+
+            # Skip invisible fans: $0 spent, no email, no IG username, no phone
+            if amount == 0 and not email and not ig and not phone:
+                continue
 
             purchases = parse_purchases(purchase_str)
             cats = list(set(categorize_purchase(p) for p in purchases)) if purchases else []
@@ -377,7 +415,7 @@ def main():
 
             fans.append({
                 "name": name,
-                "email": mask_email(email),
+                "email": email,
                 "ig": ig,
                 "purchases": n_purchases,
                 "amount": amount,
@@ -501,6 +539,7 @@ def main():
     print(f"  Top score: {top_score:.2f}")
     print(f"  Tiers: {dict(tier_counts)}")
     print(f"  Top cities (top 5): {dict(city_counts.most_common(5))}")
+    print(f"  IG recovered from ManyChat: {ig_recovered_count}")
     print(f"  Slim fans output: {len(slim_fans)}")
 
     # Verify name cleaning
